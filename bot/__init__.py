@@ -136,6 +136,13 @@ except KeyError:
     GDTOT_CRYPT = None
 
 try:
+    HUB_CRYPT = get_config('HUB_CRYPT')
+    if len(HUB_CRYPT) == 0:
+        raise KeyError
+except KeyError:
+    HUB_CRYPT = None
+
+try:
     XSRF_TOKEN = get_config('XSRF_TOKEN')
     laravel_session = get_config('laravel_session')
     if len(XSRF_TOKEN) == 0 or len(laravel_session) == 0:
