@@ -4,6 +4,7 @@ import json
 import re
 import requests
 import time
+import copy
 
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
@@ -390,13 +391,25 @@ class GoogleDriveHelper:
 
     def drive_query(self, DRIVE_ID, search_type, file_name):
         batch = self.__service.new_batch_http_request(self.receive_callback)
-        query = f"name contains '{file_name}' and "
-        if search_type is not None:
-            if search_type == '-d':
-                query += "mimeType = 'application/vnd.google-apps.folder' and "
-            elif search_type == '-f':
-                query += "mimeType != 'application/vnd.google-apps.folder' and "
-        query += "trashed=false"
+        fileName = file_name
+        fileName = fileName.replace(' ', '.')
+        fileName = fileName.replace("'", "")
+        originalfileName = copy.deepcopy(fileName)
+        fileName = re.sub(r"'\S+\.", ".", fileName)
+        fileName = re.sub(r"[^a-zA-Z0-9]", " ", fileName).strip()
+        fileName = fileName.split(' ')
+        # LOGGER.info(fileName)
+        query = "(" + "".join(
+            # f"fullText contains '{name}' and "
+            f"name contains '{name}' and "
+            for name in fileName
+            if name != ''
+        )
+        if originalfileName.split(' ') != fileName:
+            query = query[:-4]
+            query += f"or name contains '{originalfileName}' and "
+        query = query[:-5]
+        query += ") and trashed = false"
         try:
             for parent_id in DRIVE_ID:
                 if parent_id != "root":
