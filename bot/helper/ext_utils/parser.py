@@ -6,7 +6,7 @@ import requests
 from lxml import etree
 from urllib.parse import urlparse, parse_qs
 
-from bot import APPDRIVE_EMAIL, APPDRIVE_PASS, GDTOT_CRYPT, XSRF_TOKEN, laravel_session
+from bot import APPDRIVE_EMAIL, APPDRIVE_PASS, GDTOT_CRYPT, XSRF_TOKEN, laravel_session, HUB_CRYPT
 from bot.helper.ext_utils.exceptions import DDLException
 
 account = {
@@ -31,7 +31,7 @@ def gen_payload(data, boundary=f'{"-"*6}_'):
 
 def appdrive(url: str) -> str:
     if (APPDRIVE_EMAIL or APPDRIVE_PASS) is None:
-        raise DDLException("APPDRIVE_EMAIL and APPDRIVE_PASS env vars not provided")
+        raise DDLException("APPDRIVE_EMAIL and APPDRIVE_PASS env vars not provided!")
     client = requests.Session()
     client.headers.update({
         "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36"
@@ -41,7 +41,7 @@ def appdrive(url: str) -> str:
     try:
         key = re.findall(r'"key",\s+"(.*?)"', res.text)[0]
     except IndexError:
-        raise DDLException("Invalid link")
+        raise DDLException("Invalid link!")
     ddl_btn = etree.HTML(res.content).xpath("//button[@id='drc']")
     info = {}
     info['error'] = False
@@ -79,7 +79,7 @@ def appdrive(url: str) -> str:
 
 def gdtot(url: str) -> str:
     if GDTOT_CRYPT is None:
-        raise DDLException("GDTOT_CRYPT env var not provided")
+        raise DDLException("GDTOT_CRYPT env var not provided!")
     client = requests.Session()
     client.cookies.update({'crypt': GDTOT_CRYPT})
     res = client.get(url)
@@ -93,7 +93,7 @@ def gdtot(url: str) -> str:
         if 'msgx' in params:
             info['message'] = params['msgx'][0]
         else:
-            info['message'] = 'Invalid link'
+            info['message'] = 'Invalid link!'
     else:
         decoded_id = base64.b64decode(str(params['gd'][0])).decode('utf-8')
         drive_link = f'https://drive.google.com/open?id={decoded_id}'
@@ -105,7 +105,7 @@ def gdtot(url: str) -> str:
 
 def sharer(url: str, forced_login=False) -> str:
     if (XSRF_TOKEN or laravel_session) is None:
-        raise DDLException("XSRF_TOKEN and laravel_session env vars not provided")
+        raise DDLException("XSRF_TOKEN and laravel_session env vars not provided!")
     scraper = cloudscraper.create_scraper(allow_brotli=False)
     scraper.cookies.update({
         "XSRF-TOKEN": XSRF_TOKEN,
@@ -139,4 +139,47 @@ def sharer(url: str, forced_login=False) -> str:
     if not info['error']:
         return info['gdrive_link']
     else:
-        raise DDLException("Invalid link")
+        raise DDLException("Invalid link!")
+
+def parse_info(res):
+    info_parsed = {}
+    title = re.findall('>(.*?)<\/h4>', res.text)[0]
+    info_chunks = re.findall('>(.*?)<\/td>', res.text)
+    info_parsed['title'] = title
+    for i in range(0, len(info_chunks), 2):
+        info_parsed[info_chunks[i]] = info_chunks[i+1]
+    return info_parsed
+
+def hubdrive_dl(url: str) -> str:
+    if HUB_CRYPT is None:
+        raise DDLException("HUB_CRYPT env var not provided!")
+    client = requests.Session()
+    client.cookies.update({'crypt': HUB_CRYPT})
+    
+    res = client.get(url)
+    info_parsed = parse_info(res)
+    info_parsed['error'] = False
+    
+    up = urlparse(url)
+    req_url = f"{up.scheme}://{up.netloc}/ajax.php?ajax=download"
+    
+    file_id = url.split('/')[-1]
+    
+    data = { 'id': file_id }
+    
+    headers = {
+        'x-requested-with': 'XMLHttpRequest'
+    }
+    
+    try:
+        res = client.post(req_url, headers=headers, data=data).json()['file']
+    except: return {'error': True, 'src_url': url}
+    
+    gd_id = re.findall('gd=(.*)', res, re.DOTALL)[0]
+    
+    info_parsed['gdrive_url'] = f"https://drive.google.com/open?id={gd_id}"
+    info_parsed['src_url'] = url
+    if not info_parsed['error']:
+        return info_parsed['gdrive_url']
+    else:
+        raise DDLException("Invalid link!")
