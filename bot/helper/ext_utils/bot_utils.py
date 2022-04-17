@@ -30,6 +30,10 @@ def is_sharer_link(url: str):
     url = re.match(r'https?://sharer\.pw/\S+', url)
     return bool(url)
 
+def is_hubdrive_link(url: str):
+    url = re.match(r'https?://(hubdrive|drivehub)\.\S+', url)
+    return bool(url)
+
 def new_thread(fn):
     def wrapper(*args, **kwargs):
         thread = threading.Thread(target=fn, args=args, kwargs=kwargs)
