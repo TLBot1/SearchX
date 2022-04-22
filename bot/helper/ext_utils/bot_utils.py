@@ -32,6 +32,7 @@ def is_sharer_link(url: str):
 
 def is_hubdrive_link(url: str):
     url = re.match(r'https?://(hubdrive|drivehub)\.\S+', url)
+    url = url.replace(".in", ".cc")
     return bool(url)
 
 def new_thread(fn):
