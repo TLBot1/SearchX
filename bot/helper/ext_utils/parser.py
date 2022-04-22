@@ -142,6 +142,7 @@ def sharer(url: str, forced_login=False) -> str:
         raise DDLException("Invalid link!")
 
 def hubdrive_dl(url: str) -> str:
+url = url.replace(".in", ".cc")
     if HUB_CRYPT is None:
         raise DDLException("HUB_CRYPT env var not provided!")
     scraper = cloudscraper.create_scraper(allow_brotli=False)
